@@ -1,8 +1,7 @@
 from bot import discord
 
 from bot import bot
-from bot import giveaway_sync
-from bot import ENV, IDS
+from bot import ENV
 
 @bot.event
 async def on_ready():
@@ -14,6 +13,4 @@ async def on_ready():
 	print("Available command")
 	for command in bot.commands:
 		print(f"  - {command.name}")
-	print("------")
-	await giveaway_sync()
 	print("------")

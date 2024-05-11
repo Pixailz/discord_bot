@@ -6,9 +6,6 @@ from bot import urlparse
 from bot import parse_qs
 from bot import asyncio
 
-from bot import pprint
-
-from bot import is_allowed
 from bot import send_message
 from bot import send_embed
 from bot import get_author
@@ -16,6 +13,7 @@ from bot import get_embed
 from bot import search_yt_video
 from bot import search_yt_playlist
 from bot import ytdl
+from bot import is_allowed
 from bot import FFMPEG_OPTIONS
 
 class MusicCOG(
@@ -31,23 +29,19 @@ class MusicCOG(
 		self.vc = None
 		self.last_ctx = None
 
-	g_main = discord.app_commands.Group(
+	@commands.Cog.listener()
+	async def on_ready(self):
+		# print("Music cog loading")
+		# print("------")
+		# print("------")
+		print("Music cog loaded")
+
+	@commands.hybrid_group(
 		name="px_yt",
 		description="Play Music in voice channel",
 	)
-
-	@commands.Cog.listener()
-	async def on_ready(self):
-		print("Music cog loaded")
-
-	@staticmethod
-	def add_vid_embed(vid, embed, index):
-		embed.add_field(
-			name=f"{index}. {vid['title']} "
-				f"({str(datetime.timedelta(seconds=vid['duration']))})",
-			value=f"From `{vid['channel']}`",
-		)
-		embed.set_image(url=vid['thumbnail'])
+	async def px_yt(self, ctx):
+		pass
 
 	async def yt_add_single(self, ctx, query):
 		video_id = query.get("v", None)
@@ -55,7 +49,8 @@ class MusicCOG(
 			await send_message(ctx, "Invalid Youtube URL")
 			return
 
-		await ctx.response.defer()
+		if ctx.interaction:
+			await ctx.interaction.response.defer()
 
 		vid = search_yt_video(video_id[0])
 		vid["ctx"] = ctx
@@ -85,7 +80,7 @@ class MusicCOG(
 			MusicCOG.add_vid_embed(vid, embed, len(self.queue))
 			await send_embed(ctx, embed)
 
-	@g_main.command(name="add", description="Add music to the queue")
+	@px_yt.command(name="add", description="Add music to the queue")
 	@is_allowed()
 	async def yt_add(self, ctx,
 		target_url: str,
@@ -106,11 +101,10 @@ class MusicCOG(
 		else:
 			await self.yt_add_playlist(ctx, query)
 
-	@g_main.command(
+	@px_yt.command(
 		name="join",
 		description="Make the bot join a voice channel",
 	)
-	@is_allowed()
 	async def yt_join(self, ctx):
 		author = get_author(ctx)
 		try:
@@ -135,31 +129,28 @@ class MusicCOG(
 		await self.update_vc_state()
 		await send_message(ctx, f"Successfully joined {self.current_channel}")
 
-	@g_main.command(
+	@px_yt.command(
 		name="pause",
 		description="Make the bot pause the music",
 	)
-	@is_allowed()
 	async def yt_pause(self, ctx):
 		self.is_playing = False
 		await self.update_vc_state()
 		await send_message(ctx, f"Successfully paused music {self.current_channel}")
 
-	@g_main.command(
+	@px_yt.command(
 		name="resume",
 		description="Make the bot resume the music",
 	)
-	@is_allowed()
 	async def yt_resume(self, ctx):
 		self.is_playing = True
 		await self.update_vc_state()
 		await send_message(ctx, f"Successfully resumed music {self.current_channel}")
 
-	@g_main.command(
+	@px_yt.command(
 		name="leave",
 		description="Make the bot leave from from voice channel",
 	)
-	@is_allowed()
 	async def yt_leave(self, ctx):
 		if self.vc and self.vc.is_connected():
 			self.is_playing = False
@@ -169,11 +160,10 @@ class MusicCOG(
 		else:
 			await send_message(ctx, f"Not in a channel")
 
-	@g_main.command(
+	@px_yt.command(
 		name="skip",
 		description="Skip current music in the queue",
 	)
-	@is_allowed()
 	async def yt_skip(self, ctx):
 		if len(self.queue) == 0:
 			await send_message(ctx, "No music in the queue")
@@ -183,11 +173,10 @@ class MusicCOG(
 			self.vc.stop()
 			await send_message(ctx, f"Successfully skiped music {self.current_channel}")
 
-	@g_main.command(
+	@px_yt.command(
 		name="play",
 		description="Make the bot play the music",
 	)
-	@is_allowed()
 	async def yt_play(self, ctx):
 		if len(self.queue) == 0:
 			self.is_playing = False
@@ -247,11 +236,10 @@ class MusicCOG(
 			)
 		)
 
-	@g_main.command(
+	@px_yt.command(
 		name="list",
 		description="List current queue",
 	)
-	@is_allowed()
 	async def yt_list(self, ctx):
 		if len(self.queue) == 0:
 			await send_message(ctx, "No music in the queue")
@@ -262,27 +250,14 @@ class MusicCOG(
 				f"({str(datetime.timedelta(seconds=v['duration']))})\n"
 		await send_message(ctx, s)
 
-	@g_main.command(
+	@px_yt.command(
 		name="clear",
 		description="Clear current queue",
 	)
-	@is_allowed()
 	async def yt_clear(self, ctx):
 		self.queue = list()
 		await self.update_vc_state()
 		await send_message(ctx, f"Successfully cleared the queue")
-
-	@staticmethod
-	def get_vid_info(vid):
-		return (
-			"```"
-			f"Title:     {vid['title']}\n"
-			f"Url:       {vid['url']}\n"
-			f"Duration:  {str(datetime.timedelta(seconds=vid['duration']))}\n"
-			f"Thumbnail: {vid['thumbnail']}\n"
-			f"Channel:   {vid['channel']}\n"
-			"```"
-		)
 
 	async def update_vc_state(self):
 		if self.current_channel is None or self.current_guild is None:
@@ -304,3 +279,24 @@ class MusicCOG(
 			self_deaf=self_deaf,
 			self_mute=self_mute
 		)
+
+	@staticmethod
+	def get_vid_info(vid):
+		return (
+			"```"
+			f"Title:     {vid['title']}\n"
+			f"Url:       {vid['url']}\n"
+			f"Duration:  {str(datetime.timedelta(seconds=vid['duration']))}\n"
+			f"Thumbnail: {vid['thumbnail']}\n"
+			f"Channel:   {vid['channel']}\n"
+			"```"
+		)
+
+	@staticmethod
+	def add_vid_embed(vid, embed, index):
+		embed.add_field(
+			name=f"{index}. {vid['title']} "
+				f"({str(datetime.timedelta(seconds=vid['duration']))})",
+			value=f"From `{vid['channel']}`",
+		)
+		embed.set_image(url=vid['thumbnail'])

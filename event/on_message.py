@@ -7,7 +7,6 @@ from bot import have_role
 from bot import have_roles
 from bot import send_message
 from bot import MODERATED_GUILD
-from bot import ALLOWED_BRO
 from bot import IDS
 from bot import variate_word
 

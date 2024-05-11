@@ -49,11 +49,6 @@ def signal_handler(sig, frame):
 
 	sys.exit(retv)
 
-def message_to_giveaway(id_message):
-	for k, v in GIVEAWAY.items():
-		if v.get("id_message") == id_message:
-			return k
-	return None
 
 def have_role(user, role_id: int):
 	if not getattr(user, "roles", None):
@@ -84,11 +79,6 @@ if os.path.exists(IDS_FILE):
 else:
 	IDS = dict()
 
-TO_SYNC = [
-	IDS["GUILD"]["SBA"],
-	IDS["GUILD"]["server_test"],
-]
-
 signal.signal(signal.SIGINT, signal_handler)
 signal.signal(signal.SIGUSR2, signal_handler)
 
@@ -96,7 +86,7 @@ with open(".env", "r") as f:
 	ENV = json.load(f)
 
 ALLOWED_BRO = [
-	# IDS["USER"]["pix"],
+	IDS["USER"]["pix"],
 	IDS["USER"]["poney"],
 	IDS["USER"]["kelly"],
 	IDS["USER"]["arty"],
@@ -152,7 +142,7 @@ intents = discord.Intents.default()
 intents.members = True
 intents.message_content = True
 bot = commands.Bot(
-	command_prefix='/',
+	command_prefix='>>',
 	intents=intents,
 	permissions=discord.Permissions.administrator
 )
@@ -169,14 +159,14 @@ from utils.youtube import search_yt_playlist
 from utils.youtube import ytdl
 from utils.youtube import FFMPEG_OPTIONS
 
+from utils.send import send_message
+from utils.send import send_embed
+
 from utils.check import is_bro
 from utils.check import extended_check
 from utils.check import is_allowed
 
 from utils.embed import get_embed
-
-from utils.send import send_message
-from utils.send import send_embed
 
 from utils.random import get_random_bytes
 
@@ -186,45 +176,41 @@ from utils.re import r
 
 from utils.mee6 import get_mee6_leaderboard
 
-from command.giveaway.cmd import giveaway_sync
-from command.random.cmd import random_exec
-from command.sync.cmd import sync_exec
 from command.spam.cmd import spam_exec
-from command.date.cmd import date_exec
 
 # CMD
-from command.giveaway.cmd import giveaway_cmd
-from command.random.cmd import random_cmd
-from command.sync.cmd import sync_cmd
 from command.spam.cmd import spam_cmd
-from command.date.cmd import date_cmd
 
 # COG
-from command.music.cog import MusicCOG
+from cog.Music		import MusicCOG
+from cog.Random		import RandomCOG
+from cog.Giveaway	import GiveawayCOG
+from cog.Sync		import SyncCOG
+from cog.Date		import DateCOG
+from cog.Dump		import DumpCOG
 
 # INTERACTION
 
 ## CMD
-import command.random.interaction.cmd
-import command.sync.interaction.cmd
 import command.spam.interaction.cmd
-import command.date.interaction.cmd
 
 ## MEMBER
-import command.dump.interaction.member
 import command.show.join_date.interaction.member
 import command.show.pp.interaction.member
 
 # EVENT
 # import event.on_command_error
 import event.on_message
-import event.on_raw_reaction_add
-import event.on_raw_reaction_remove
 import event.on_ready
 
 from command.help.cmd import CustomHelp
 
 asyncio.run(bot.add_cog(MusicCOG(bot)))
+asyncio.run(bot.add_cog(RandomCOG(bot)))
+asyncio.run(bot.add_cog(GiveawayCOG(bot)))
+asyncio.run(bot.add_cog(SyncCOG(bot)))
+asyncio.run(bot.add_cog(DateCOG(bot)))
+asyncio.run(bot.add_cog(DumpCOG(bot)))
 
 def bot_run():
 	bot.help_command = CustomHelp()

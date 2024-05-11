@@ -1,2 +1,9 @@
+# Secret
 .env
+
+# Python thing
 venv/
+**/__pycache__
+
+# LOG
+data/bot.log
