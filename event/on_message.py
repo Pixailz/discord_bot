@@ -28,6 +28,8 @@ async def moderate_message_url(msg):
 		await send_message(msg.channel, f"{msg.author.mention}, you can't send link")
 		print(f"MODERATE_MESSAGE_URL: {msg.author} cannot send link in {msg.guild}")
 		print(f"> '{msg.content}'")
+		return True
+	return False
 
 async def moderate_message_words(msg):
 	lowered = msg.content.lower()
@@ -39,6 +41,29 @@ async def moderate_message_words(msg):
 				print(f"MODERATE_MESSAGE_WORDS: {msg.author} send {word} in {msg.guild}")
 				print(f"> '{msg.content}'")
 				return True
+
+	return False
+
+async def moderate_message_upper(msg, percentage):
+	count_alpha = 0
+	count_upper = 0
+	for c in msg.content:
+		if c.isalpha():
+			count_alpha += 1
+		if c.isupper():
+			count_upper += 1
+
+	if count_upper == 0:
+		current_percentage = 0
+	else:
+		current_percentage = (count_upper * 100) / count_alpha
+
+	if current_percentage >= percentage:
+		await msg.delete()
+		await send_message(msg.channel, f"{msg.author.mention}, Stop shouting.")
+		print(f"MODERATE_MESSAGE_UPPER: {msg.author} shout in {msg.guild}")
+		print(f"> '{msg.content}'")
+		return True
 	return False
 
 def should_moderate_url(msg):
@@ -54,15 +79,26 @@ def should_moderate_url(msg):
 def should_moderate_word(msg):
 	return True
 
+def should_moderate_upper(msg):
+	if len(msg.content) > 4 or len(msg.content.split()) > 1:
+		return True
+	return False
+
 async def moderate_message(msg):
 	for mode in MODERATED_GUILD[msg.guild.id].keys():
 		match mode:
 			case "url":
 				if should_moderate_url(msg):
-					await moderate_message_url(msg)
+					if await moderate_message_url(msg):
+						continue
 			case "words":
 				if should_moderate_word(msg):
-					await moderate_message_words(msg)
+					if await moderate_message_words(msg):
+						continue
+			case "upper":
+				if should_moderate_upper(msg):
+					if await moderate_message_upper(msg, MODERATED_GUILD[msg.guild.id]["upper"]):
+						continue
 
 def should_moderate_message(msg):
 	if msg.author.bot:

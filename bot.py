@@ -32,6 +32,7 @@ DIR_BASE		= os.path.dirname(os.path.realpath(__file__))
 DIR_DATA		= os.path.join(DIR_BASE, "data")
 
 GIVEAWAY_FILE	= os.path.join(DIR_DATA, "giveaway.json")
+WARN_FILE		= os.path.join(DIR_DATA, "warn.json")
 LOG_FILE		= os.path.join(DIR_DATA, "bot.log")
 IDS_FILE		= os.path.join(DIR_DATA, "ids.json")
 
@@ -40,10 +41,17 @@ def signal_handler(sig, frame):
 	if sig == signal.SIGINT:
 		print("\nCTRL+C")
 		retv = 130
-	print("Saving giveaway")
+
+	print("Saving Sate")
+
+	print("Saving Giveaway")
 	with open(GIVEAWAY_FILE, "w") as f:
 		json.dump(GIVEAWAY, f, indent=4)
-	print("Saved giveaway")
+	print("Saved Giveaway")
+	print("Saving Warn")
+	with open(WARN_FILE, "w") as f:
+		json.dump(WARN , f, indent=4)
+	print("Saved Warn")
 
 	print("Saved state")
 
@@ -72,6 +80,12 @@ if os.path.exists(GIVEAWAY_FILE):
 		GIVEAWAY = json.load(f)
 else:
 	GIVEAWAY = dict()
+
+if os.path.exists(WARN_FILE):
+	with open(WARN_FILE, "r") as f:
+		WARN = json.load(f)
+else:
+	WARN = dict()
 
 if os.path.exists(IDS_FILE):
 	with open(IDS_FILE, "r") as f:
@@ -108,17 +122,20 @@ BAD_WORD = [
 MODERATED_GUILD = {
 	IDS["GUILD"]["SBA"]: {
 		"url": None,
+		"upper": 40,
 		"words": [
 			*BAD_WORD,
 			"pendisupendi",
 			"ajrankamil",
-		]
+		],
 	},
 	IDS["GUILD"]["server_test"]: {
 		"url": None,
+		"upper": 40,
 		"words": [
 			*BAD_WORD,
-		]
+			"bite",
+		],
 	}
 }
 
@@ -163,8 +180,10 @@ from utils.send import send_message
 from utils.send import send_embed
 
 from utils.check import is_bro
-from utils.check import extended_check
+from utils.check import is_allowed_check
 from utils.check import is_allowed
+from utils.check import is_command_in_guild_check
+from utils.check import is_command_in_guild
 
 from utils.embed import get_embed
 
@@ -188,6 +207,7 @@ from cog.Giveaway	import GiveawayCOG
 from cog.Sync		import SyncCOG
 from cog.Date		import DateCOG
 from cog.Dump		import DumpCOG
+from cog.Warn		import WarnCOG
 
 # INTERACTION
 
@@ -211,6 +231,7 @@ asyncio.run(bot.add_cog(GiveawayCOG(bot)))
 asyncio.run(bot.add_cog(SyncCOG(bot)))
 asyncio.run(bot.add_cog(DateCOG(bot)))
 asyncio.run(bot.add_cog(DumpCOG(bot)))
+asyncio.run(bot.add_cog(WarnCOG(bot)))
 
 def bot_run():
 	bot.help_command = CustomHelp()

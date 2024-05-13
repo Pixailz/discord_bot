@@ -8,7 +8,7 @@ from bot import ALLOWED_BRO
 def is_bro(user):
 	return user.id in ALLOWED_BRO
 
-async def extended_check(ctx):
+async def is_allowed_check(ctx):
 	author = get_author(ctx)
 	if isinstance(ctx, discord.Interaction):
 		content = ctx.command.name
@@ -24,4 +24,10 @@ async def extended_check(ctx):
 	return True
 
 def is_allowed():
-	return commands.check(extended_check)
+	return commands.check(is_allowed_check)
+
+async def is_command_in_guild_check(ctx):
+	return ctx.guild != None
+
+def is_command_in_guild():
+	return commands.check(is_command_in_guild_check)

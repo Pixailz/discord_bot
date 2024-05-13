@@ -6,4 +6,4 @@ venv/
 **/__pycache__
 
 # LOG
-data/bot.log
+data/bot\.log

@@ -2,7 +2,7 @@ from bot import discord
 
 from bot import bot
 from bot import spam_exec
-from bot import extended_check
+from bot import is_allowed_check
 
 @bot.tree.command(
 	name="px_spam",
@@ -21,6 +21,6 @@ async def spam(
 	time: float = 1.0,
 	nb: int = 10,
 ):
-	if await extended_check(interaction):
+	if await is_allowed_check(interaction):
 		return
 	await spam_exec(interaction, target, msg, time, nb)
