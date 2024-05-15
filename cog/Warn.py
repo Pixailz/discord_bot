@@ -105,4 +105,4 @@ def get_warn_user(user, guild_warn):
 		return "No warn found for " + print_user(user.id)
 
 	warns = guild_warn[user_id]
-	return f"Found {len(warns)} for {print_user(user_id)}:\n" + get_warns(warns)
+	return f"Found {len(warns)} for {print_user(user.id)}:\n" + get_warns(warns)
