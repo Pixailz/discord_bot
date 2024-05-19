@@ -67,7 +67,8 @@ class MusicCOG(
 			await send_message(ctx, "Invalid Youtube Playlist URL")
 			return
 
-		await ctx.response.defer()
+		if ctx.interaction:
+			await ctx.interaction.response.defer()
 
 		vids = search_yt_playlist(playlist_id[0])
 

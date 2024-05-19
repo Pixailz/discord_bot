@@ -48,7 +48,7 @@ async def moderate_message_upper(msg, percentage):
 	count_alpha = 0
 	count_upper = 0
 	for c in msg.content:
-		if c.isalpha():
+		if c.isprintable() and not c.isspace():
 			count_alpha += 1
 		if c.isupper():
 			count_upper += 1
