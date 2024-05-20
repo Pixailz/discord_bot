@@ -7,3 +7,6 @@ venv/
 
 # LOG
 data/bot\.log
+
+# data
+data/db.sqlite3

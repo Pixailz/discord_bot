@@ -9,9 +9,13 @@ import urllib
 import typing
 import asyncio
 import discord
-import datetime
+import sqlite3
 import logging
+import datetime
 import itertools
+from table2ascii import table2ascii as t2a
+from table2ascii import PresetStyle as t2aStyle
+from table2ascii import Alignment as t2aAlignment
 import logging.handlers
 import yt_dlp
 
@@ -30,6 +34,8 @@ from pprint import pprint
 DIR_BASE		= os.path.dirname(os.path.realpath(__file__))
 
 DIR_DATA		= os.path.join(DIR_BASE, "data")
+
+DB_FILE			= os.path.join(DIR_DATA, "db.sqlite3")
 
 GIVEAWAY_FILE	= os.path.join(DIR_DATA, "giveaway.json")
 WARN_FILE		= os.path.join(DIR_DATA, "warn.json")
@@ -165,7 +171,9 @@ bot = commands.Bot(
 )
 bot.remove_command('help')
 
-sys.set_int_max_str_digits(10000)
+from utils.sqlite3 import DBWrapper
+from utils.sqlite3 import NameTable
+main_db = DBWrapper(DB_FILE)
 
 from utils.user import get_user
 from utils.user import get_author

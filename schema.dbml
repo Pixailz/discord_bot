@@ -1,0 +1,89 @@
+// Use DBML to define your database structure
+// Docs: https://dbml.dbdiagram.io/docs
+
+enum channel_type
+{
+  "voice"
+  "text"
+}
+
+Table user
+{
+  key int [primary key]
+  id  int
+}
+
+Table guild
+{
+  key int [primary key]
+  id  int
+}
+
+Table channel
+{
+  key       int [primary key]
+  id        int
+  type      channel_type
+
+  guild_key int [ref: > guild.key]
+}
+
+Table message
+{
+  key         int [primary key]
+  id          int
+
+  channel_key int [ref: > channel.key]
+}
+
+Table role
+{
+  key       int [primary key]
+
+  id        int
+
+  guild_key int [ref: > guild.key]
+}
+
+Table giveaway
+{
+  key         int [primary key]
+  created     timestamp
+
+  message_key int [ref: > message.key]
+}
+
+
+
+Table guild_conf
+{
+  key       int [primary key]
+  url       bool
+  upper     int
+  words     bool
+
+  guild_key int [ref: > guild.key]
+}
+
+Table guild_word
+{
+  key       int [primary key]
+  word      char
+
+  guild_key int [ref: > guild.key]
+}
+
+Table is_allowed
+{
+  key       int
+
+  user_key  int [ref: > user.key]
+}
+
+Table guild_is_allowed
+{
+  key       int
+
+  user_key  int [ref: > user.key]
+  guild_key int [ref: > guild.key]
+}

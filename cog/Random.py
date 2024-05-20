@@ -1,3 +1,4 @@
+from bot import sys
 from bot import discord
 from discord.ext import commands
 from bot import Literal
@@ -5,6 +6,8 @@ from bot import Literal
 from bot import is_allowed
 from bot import send_message
 from bot import get_random_bytes
+
+sys.set_int_max_str_digits(10000)
 
 class RandomCOG(
 		commands.Cog,
