@@ -1,5 +1,4 @@
 from bot import YoutubeDL
-from bot import pprint
 
 YDL_OPTIONS = {
 	"format": "bestaudio/best",

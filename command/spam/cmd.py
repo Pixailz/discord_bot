@@ -8,8 +8,6 @@ from bot import send_message
 from bot import get_user
 from bot import get_author
 
-from bot import pprint
-
 async def spam_one(ctx, user, user_from, info_msg, msg, i, nb):
 	await send_message(user, f"spammed by <@{user_from.id}>:\n```\n{msg}\n```")
 	if isinstance(ctx, discord.Interaction):

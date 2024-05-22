@@ -31,6 +31,16 @@ from typing import Union, Optional, Literal
 
 from pprint import pprint
 
+ChannelABC		= Union[
+	discord.TextChannel,
+	discord.StageChannel,
+	discord.VoiceChannel,
+	discord.Thread,
+	discord.DMChannel,
+	discord.GroupChannel,
+	discord.PartialMessageable
+]
+
 DIR_BASE		= os.path.dirname(os.path.realpath(__file__))
 
 DIR_DATA		= os.path.join(DIR_BASE, "data")

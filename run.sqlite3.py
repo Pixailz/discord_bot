@@ -7,8 +7,6 @@ from bot import pprint
 if __name__ == "__main__":
 	test = DBWrapper("db.sqlite3")
 
-
-
 	# test.create_user(10)
 	# test.create_user(20)
 	# test.create_user(30)

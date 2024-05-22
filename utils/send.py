@@ -38,10 +38,13 @@ async def send_message(context, message):
 		print("Error getting send_func from context")
 		return
 
-	if len(message) >= 2000:
-		return await send_message_long(send_func, message)
-	else:
-		return await send_message_short(send_func, message)
+	try:
+		if len(message) >= 2000:
+			return await send_message_long(send_func, message)
+		else:
+			return await send_message_short(send_func, message)
+	except discord.errors.HTTPException as e:
+		print(f"Could not send message\n> {e}")
 
 async def send_embed(context, embed):
 	send_func = get_send_func(context)

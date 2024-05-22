@@ -1,7 +1,12 @@
+from bot import discord
 from bot import sqlite3
 from bot import datetime
+from bot import ChannelABC
+from bot import Literal
 
 from bot import DB_FILE
+
+DEBUG = True
 
 channel_type = [
 	"text",
@@ -25,10 +30,10 @@ class NameTable:
 	user_guild = "user_guild"
 	role = "role"
 	giveaway = "giveaway"
-
+	user_giveaway = "user_giveaway"
 
 class DBWrapper:
-	def __init__(self, db_name):
+	def __init__(self, db_name: str):
 		self.db = sqlite3.connect(db_name)
 		self.cur = self.db.cursor()
 
@@ -38,9 +43,11 @@ class DBWrapper:
 	def __del__(self):
 		self.db.close()
 
-	def create_table(self, name, col):
-		# print(f"CREATE TABLE IF NOT EXISTS {name} ({col}\n);")
-		self.cur.execute(f"CREATE TABLE IF NOT EXISTS {name} ({col}\n);")
+	def create_table(self, name: str, col: str):
+		req = f"CREATE TABLE IF NOT EXISTS {name} ({col}\n);"
+		if DEBUG:
+			print(req)
+		self.cur.execute(req)
 
 	def init_db(self):
 		# USER
@@ -77,6 +84,8 @@ class DBWrapper:
 
 		## USER IN GUILD
 		self.create_table(NameTable.user_guild, """
+		key INTEGER PRIMARY KEY,
+
 		user_key INTEGER,
 		guild_key INTEGER,
 
@@ -106,22 +115,75 @@ class DBWrapper:
 		FOREIGN KEY (message_key) REFERENCES message(key)
 		ON DELETE CASCADE""")
 
+		## USER IN GIVEAWAY
+		self.create_table(NameTable.user_giveaway, f"""
+		key INTEGER PRIMARY KEY,
+		user_key INTEGER,
+		giveaway_key INTEGER,
+
+		first_interaction REAL,
+		participate BOOL DEFAULT {True},
+		has_win BOOL DEFAULT {False},
+
+		FOREIGN KEY (user_key) REFERENCES user(key)
+		ON DELETE CASCADE,
+		FOREIGN KEY (giveaway_key) REFERENCES giveaway(key)
+		ON DELETE CASCADE""")
+
 
 	# FUNCTION
+	## CREATE
+	def insert(self, table: str, col: list[str], value: list[str]):
+		# req = f"INSERT INTO {table} (\"{'", "'.join(col)}\")"
+		req = f"INSERT INTO {table} ({', '.join(col)})"
+		req += f" VALUES ({', '.join(
+			[ str(i) for i in value ]
+		)})"
+		if DEBUG:
+			print(req)
+		self.cur.execute(req)
+		self.db.commit()
+		return True, self.cur.lastrowid
+
+	def update(self,
+			table: str,
+			value: list[tuple],
+			where: list[tuple] = None
+		):
+		req = f"UPDATE {table}"
+
+		for v in value:
+			req += f" SET {v[0]} = {v[1]}"
+
+		if where is not None:
+			for k, v in enumerate(where):
+				if not k:
+					req += " WHERE "
+				else:
+					req += " AND "
+
+				req += f"{v[0]} = {v[1]}"
+
+		if DEBUG:
+			print(req)
+		self.cur.execute(req)
+		self.db.commit()
+		return True, self.cur.lastrowid
+
 	## GET
 	def get(self,
 			table: str,
 			select: str = "*",
 			where: list[tuple] = None,
 			col: str = None,
-			order: str = "ASC",
+			order: Literal["ASC", "DESC"] = "ASC",
 			join: list[tuple] = None,
 		):
 
 		req = f"SELECT {select} FROM {table}"
 
 		if join is not None:
-			for k, v in enumerate(join):
+			for v in join:
 				req += f" JOIN {v[0]} ON {v[1]} = {v[2]}"
 
 		if where is not None:
@@ -137,7 +199,8 @@ class DBWrapper:
 			req += f" ORDER BY {col} {order}"
 
 		req += ";"
-		print(req)
+		if DEBUG:
+			print(req)
 		res = self.cur.execute(req).fetchall()
 
 		if len(res) == 0:
@@ -157,138 +220,136 @@ class DBWrapper:
 			return None
 		return res[0]
 
-	## CREATE
-	def create_user(self, user_id):
-		self.cur.execute(f"""
-			INSERT INTO {NameTable.user} (id)
-			VALUES ({user_id});
-		""")
-		self.db.commit()
-		return True, self.cur.lastrowid
+	def get_key(self, table: str, id: int,
+			where: list[tuple] = None,
+			join: list[tuple] = None
+		):
+		w = [("id", id)]
+		if where is not None:
+			for ww in where:
+				w.append(ww)
 
-	def create_guild(self, guild_id):
-		self.cur.execute(f"""
-			INSERT INTO {NameTable.guild} (id)
-			VALUES ({guild_id});
-		""")
-		self.db.commit()
-		return True, self.cur.lastrowid
+		key = self.get_one(table, "key", where = w, join = join)
+		return key[0] if key is not None else None
 
-	def create_role(self, role_id, guild_id):
-		guild_key = self.get_one(NameTable.guild, "key", [("id", guild_id)])
-		if guild_key is None:
-			return False, -1
-		guild_key = guild_key[0]
+	def get_user_key(self, user_id: int):
+		return self.get_key(NameTable.user, user_id)
 
-		self.cur.execute(f"""
-			INSERT INTO {NameTable.role} (id, guild_key)
-			VALUES ({role_id}, {guild_key});
-		""")
-		self.db.commit()
-		return True, self.cur.lastrowid
+	def get_guild_key(self, guild_id: int):
+		return self.get_key(NameTable.guild, guild_id)
 
-	def create_user_in_guild(self, user_id, guild_id):
-		user_key = self.get_one(NameTable.user, "key", [("id", user_id)])
-		if user_key is None:
-			return False, -1
-		user_key = user_key[0]
-		guild_key = self.get_one(NameTable.guild, "key", [("id", guild_id)])
-		if guild_key is None:
-			return False, -1
-		guild_key = guild_key[0]
-
-		self.cur.execute(f"""
-			INSERT INTO {NameTable.user_guild} (user_key, guild_key)
-			VALUES ({user_key}, {guild_key});
-		""")
-		self.db.commit()
-		return True, self.cur.lastrowid
-
-	def create_channel(self, channel_id, channel_type, guild_key):
-		guild_key = self.get_one(NameTable.guild, "key", [("key", guild_key)])
-		if guild_key is None:
-			return False, -1
-		guild_key = guild_key[0]
-
-		self.cur.execute(f"""
-			INSERT INTO {NameTable.channel} (id, type, guild_key)
-			VALUES ({channel_id}, \"{channel_type}\", {guild_key});
-		""")
-		self.db.commit()
-		return True, self.cur.lastrowid
-
-	def create_message(self, message_id, channel_key):
-		channel_key = self.get_one(NameTable.channel, "key", [("key", channel_key)])
-		if channel_key is None:
-			return False, -1
-		channel_key = channel_key[0]
-
-		self.cur.execute(f"""
-			INSERT INTO {NameTable.message} (id, channel_key)
-			VALUES ({message_id}, {channel_key});
-		""")
-		self.db.commit()
-		return True, self.cur.lastrowid
-
-	def create_giveaway(self, name):
-		self.cur.execute(f"""
-			INSERT INTO {NameTable.giveaway} (name, created)
-			VALUES ("{name}", {datetime.datetime.now().timestamp()});
-		""")
-		self.db.commit()
-		return True, self.cur.lastrowid
-
-	## CREATE AND GET
-	def cget_guild(self, guild_id):
-		guild_key = self.get_one(NameTable.guild, "key", [("id", guild_id)])
-		if guild_key is None:
-			return self.create_guild(guild_id)
-
-		return True, guild_key[0]
-
-	def cget_user(self, user_id):
-		user_key = self.get_one(NameTable.user, user_id)
-		if user_key is None:
-			return self.create_user(user_id)
-		return True, user_key[0]
-
-	def cget_channel(self, channel_id, channel_type, guild_key):
-		channel_key = self.get_one(NameTable.channel, "key", [("id", channel_id)])
-		if channel_key is None:
-			return self.create_channel(channel_id, channel_type, guild_key)
-		return True, channel_key[0]
-
-	def cget_message(self, message_id, channel_key):
-		message_key = self.get_one(NameTable.message, "key", [("id", message_id)])
-		if message_key is None:
-			return self.create_message(message_id, channel_key)
-		return True, message_key[0]
-
-	def cget_user_in_guild(self, user_id, guild_id):
-		retv, user_key = self.cget_user(user_id)
-		if not retv:
-			return False, -1
-
-		retv, guild_key = self.cget_guild(guild_id)
-		if not retv:
-			return False, -1
-
-		user_guild_key = self.get_one(NameTable.user_guild, "key", [
-			("user_key", user_key),
-			("guild_key", guild_key)
+	def get_channel_key(self, channel: ChannelABC):
+		return self.get_key(NameTable.channel, channel.id, [
+			("type", f"'{channel.type}'")
 		])
-		if user_guild_key is None:
-			return self.create_user_in_guild(user_key, guild_key)
-		return True, user_guild_key[0]
 
-	def cget_role(self, role_id, guild_id):
-		role_key = self.get_one(NameTable.role, "key", [("id", role_id)])
-		if role_key is None:
-			retv, guild_key = self.cget_guild(guild_id)
-			if not retv:
-				return False, -1
-			return self.create_role(role_id, guild_key)
-		return True, role_key[0]
+	def get_message_key(self, message_id: int):
+		return self.get_key(NameTable.message, message_id)
+
+	def get_role_key(self, role_id: int):
+		return self.get_key(NameTable.role, role_id)
+
+	def get_giveaway_key(self, message_id: int):
+		key = self.get_one(f"{NameTable.giveaway} ga", "ga.key",
+			where=[("m.id", message_id)],
+			join=[("message m", "ga.message_key", "m.key")]
+		)
+		return key[0] if key is not None else None
+
+	def get_user_giveaway_key(self, user_id: int, giveaway_key: int):
+		key = self.get_one(f"{NameTable.user_giveaway} ug", "ug.key",
+			join = [
+				("user u", "ug.user_key", "u.key"),
+				("giveaway g", "ug.giveaway_key", "g.key"),
+			],
+			where = [
+				("u.id", user_id),
+				("g.key", giveaway_key)
+			],
+		)
+		return key[0] if key is not None else None
+
+	## CREATE/GET
+	def cget_user(self, user_id: int):
+		user_key = self.get_user_key(user_id)
+		if user_key is not None:
+			return True, user_key
+
+		return self.insert(NameTable.user, ["id"], [user_id])
+
+	def cget_guild(self, guild_id: int):
+		guild_key = self.get_guild_key(guild_id)
+		if guild_key is not None:
+			return True, guild_key
+
+		return self.insert(NameTable.guild, ["id"], [guild_id])
+
+	def cget_channel(self, channel: discord.abc.GuildChannel,
+			guild_id: int
+		):
+		channel_key = self.get_channel_key(channel)
+		if channel_key is not None:
+			return True, channel_key
+
+		_, guild_key = self.cget_guild(guild_id)
+
+		return self.insert(NameTable.channel,
+			["id", "type", "guild_key"],
+			[channel.id, f"'{channel.type}'", guild_key]
+		)
+
+	def cget_role(self, role_id: int, guild_id: int):
+		role_key = self.get_role_key(role_id)
+		if role_key is not None:
+			return True, role_key
+
+		_, guild_key = self.cget_guild(guild_id)
+		return self.insert(NameTable.guild,
+			["id", "guild_key"],
+			[role_id, guild_key]
+		)
+
+	def cget_message(self, message_id: int, channel: ChannelABC,
+			guild_id: int
+		):
+		message_key = self.get_message_key(message_id)
+		if message_key is not None:
+			return True, message_key
+
+		_, channel_key = self.cget_channel(channel, guild_id)
+		return self.insert(NameTable.message,
+			["id", "channel_key"],
+			[message_id, channel_key]
+		)
+
+	def cget_giveaway(self, name: str):
+		return self.insert(NameTable.giveaway,
+			["name", "created"],
+			[f"\"{name}\"", datetime.datetime.now().timestamp()]
+		)
+
+	def cget_user_guild(self, user_id, guild_id):
+		_, user_key = self.cget_user(user_id)
+		_, guild_key = self.cget_guild(guild_id)
+		return self.insert(NameTable.user_giveaway,
+			["user_key", "guild_key"],
+			[user_key, guild_key]
+		)
+
+	def cget_user_giveaway(self, user_id: int, message_id: int):
+		giveaway_key = self.get_giveaway_key(message_id)
+		if giveaway_key is None:
+			return False, f"Message id ({message_id}) not a Giveaway message"
+
+		user_giveaway_key = self.get_user_giveaway_key(user_id, giveaway_key)
+		if user_giveaway_key is not None:
+			return True, user_giveaway_key
+
+		_, user_key = self.cget_user(user_id)
+		return self.insert(NameTable.user_giveaway,
+			["giveaway_key", "user_key", "first_interaction"],
+			[giveaway_key, user_key, datetime.datetime.now().timestamp()]
+		)
 
 	## GIVEAWAY
 	def register_giveaway_message(self, giveaway_key, message):
@@ -297,29 +358,18 @@ class DBWrapper:
 			return False
 		giveaway_key = giveaway_key[0]
 
-		retv, guild_key = self.cget_guild(message.guild.id)
-		if retv is False:
-			return False
-
-		retv, channel_key = self.cget_channel(
-			message.channel.id,
-			message.channel.type,
-			guild_key
+		retv, message_key = self.cget_message(
+			message.id,
+			message.channel,
+			message.guild.id
 		)
 		if retv is False:
 			return False
 
-		retv, message_key = self.cget_message(message.id, channel_key)
-		if retv is False:
-			return False
-
-		self.cur.execute(f"""
-			UPDATE {NameTable.giveaway}
-			SET message_key = {message_key}
-			WHERE key = {giveaway_key};
-		""")
-		self.db.commit()
-		return True
+		return self.update(NameTable.giveaway,
+			[("message_key", message_key)],
+			[("key", giveaway_key)]
+		)
 
 if __name__ == "__main__":
 	import os
