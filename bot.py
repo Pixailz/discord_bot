@@ -47,7 +47,6 @@ DIR_DATA		= os.path.join(DIR_BASE, "data")
 
 DB_FILE			= os.path.join(DIR_DATA, "db.sqlite3")
 
-GIVEAWAY_FILE	= os.path.join(DIR_DATA, "giveaway.json")
 WARN_FILE		= os.path.join(DIR_DATA, "warn.json")
 LOG_FILE		= os.path.join(DIR_DATA, "bot.log")
 IDS_FILE		= os.path.join(DIR_DATA, "ids.json")
@@ -60,10 +59,6 @@ def signal_handler(sig, frame):
 
 	print("Saving Sate")
 
-	print("Saving Giveaway")
-	with open(GIVEAWAY_FILE, "w") as f:
-		json.dump(GIVEAWAY, f, indent=4)
-	print("Saved Giveaway")
 	print("Saving Warn")
 	with open(WARN_FILE, "w") as f:
 		json.dump(WARN , f, indent=4)
@@ -90,12 +85,6 @@ def have_roles(user, role_id: [int]):
 
 if not os.path.isdir(DIR_DATA):
 	os.mkdir(DIR_DATA)
-
-if os.path.exists(GIVEAWAY_FILE):
-	with open(GIVEAWAY_FILE, "r") as f:
-		GIVEAWAY = json.load(f)
-else:
-	GIVEAWAY = dict()
 
 if os.path.exists(WARN_FILE):
 	with open(WARN_FILE, "r") as f:
