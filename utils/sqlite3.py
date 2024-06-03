@@ -123,7 +123,7 @@ class DBWrapper:
 
 		first_interaction REAL,
 		participate BOOL DEFAULT {True},
-		has_win BOOL DEFAULT {False},
+		has_win int DEFAULT 0,
 
 		FOREIGN KEY (user_key) REFERENCES user(key)
 		ON DELETE CASCADE,
@@ -163,6 +163,7 @@ class DBWrapper:
 					req += " AND "
 
 				req += f"{v[0]} = {v[1]}"
+		req += ';'
 
 		if DEBUG:
 			print(req)
@@ -192,8 +193,11 @@ class DBWrapper:
 					req += " WHERE "
 				else:
 					req += " AND "
-
-				req += f"{v[0]} = {v[1]}"
+				if len(v) == 3:
+					if v[0] == "NE":
+						req += f"{v[1]} != {v[2]}"
+				else:
+					req += f"{v[0]} = {v[1]}"
 
 		if col is not None:
 			req += f" ORDER BY {col} {order}"

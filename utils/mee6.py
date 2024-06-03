@@ -31,4 +31,5 @@ def	get_mee6_leaderboard(guild_id):
 	req = Request("https://mee6.xyz/api/plugins/levels/leaderboard/" + guild_id)
 	req.add_header({"Authorization": ENV["MEE6_TOKEN"]})
 	html = req_open(req)
-	print()
+	print(html)
+	return html

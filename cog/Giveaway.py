@@ -1,4 +1,5 @@
 from bot import Union
+from bot import time
 from bot import datetime
 from bot import discord
 from discord.ext import commands
@@ -17,6 +18,8 @@ from bot import get_mee6_leaderboard
 from bot import get_random_bytes
 from bot import get_user
 from bot import print_user
+
+from bot import pprint
 
 class GiveawayCOG(
 		commands.Cog,
@@ -57,7 +60,7 @@ class GiveawayCOG(
 	@staticmethod
 	async def giveaway_user_participate(user_id, message_id, participate):
 		user_giveaway_key = GiveawayCOG.on_reaction_get_user(user_id, message_id)
-		if user_giveaway_key is None:
+		if user_giveaway_key is None and giveaway_can_join(user_id, message_id) is False:
 			return
 
 		main_db.update(NameTable.user_giveaway,
@@ -178,6 +181,122 @@ class GiveawayCOG(
 		)
 		await send_message(ctx, f"```\n{fmt}\n```")
 
+	@px_giveaway.command(
+		name="winner",
+		description="Get a winner, given a giveaway key"
+	)
+	@discord.app_commands.describe(
+		giveaway_key = "The id of the giveaway, should be already created",
+	)
+	@is_allowed()
+	async def giveaway_winner(self, ctx, giveaway_key):
+		giveaway = main_db.get_one(f"{NameTable.giveaway} ga",
+			"ga.key, ga.name, guild.id",
+			[("ga.key", giveaway_key)],
+			join = [
+				("channel", "message_key", "ga.key"),
+				("guild", "channel.guild_key", "channel.key"),
+			]
+		)
+		if giveaway is None:
+			await send_message(ctx,
+				f"Giveaway {giveaway_key} not found, or not registred"
+			)
+			return
+		giveaway_key = giveaway[0]
+		giveaway_name = giveaway[1]
+		giveaway_guild = giveaway[2]
+
+		user_list = main_db.get(f"{NameTable.user_giveaway} ug",
+			"user.id, user.key",
+			join= [
+				("user", "ug.user_key", "user.key"),
+				("giveaway", "ug.giveaway_key", "giveaway.key"),
+			],
+			where = [
+				("giveaway.key", giveaway_key),
+				("ug.participate", True),
+				("ug.has_win", False)
+			]
+		)
+
+		if len(user_list) == 0:
+			await send_message(ctx, f"No user found for giveaway `{giveaway_name}`")
+			return
+
+		sanitized = list()
+		guild = self.bot.get_guild(giveaway_guild)
+		if guild is None:
+			await send_message(ctx, f"guild id, {guild_id}, not found")
+			return
+
+		for user in user_list:
+			if guild.get_member(user[0]) is not None:
+				sanitized.append(user)
+
+		nb_user = len(sanitized)
+		if nb_user == 0:
+			await send_message(ctx, f"No user found for giveaway `{giveaway_name}`")
+			return
+
+		winner = sanitized[get_random_bytes(4) % nb_user]
+		print(f"{giveaway_key = }")
+		winner_id = main_db.get(
+			NameTable.user_giveaway, "*", [
+				("giveaway_key", giveaway_key),
+				("NE", "has_win", 0)
+			]
+		)
+		if winner_id == None:
+			winner_id = 1
+		else:
+			winner_id = len(winner_id) + 1
+		main_db.update(NameTable.user_giveaway, [("has_win", winner_id)],
+			[("giveaway_key", giveaway_key), ("user_key", winner[1])]
+		)
+
+		message = await send_message(ctx, "And the Winner is")
+		time.sleep(1)
+		await message.edit(content="And the Winner is .")
+		time.sleep(1)
+		await message.edit(content="And the Winner is ..")
+		time.sleep(1)
+		await message.edit(content="And the Winner is ...")
+		time.sleep(1)
+		message = await send_message(ctx, f"And the Winner is **<@{winner[0]}>** ({winner[0]})")
+
+	@px_giveaway.command(
+		name="sync",
+		description="Sync giveaways"
+	)
+	@is_allowed()
+	async def giveaway_sync(self, ctx):
+		if ctx.interaction:
+			await ctx.interaction.response.defer()
+		await giveaway_sync(self.bot)
+		await send_message(ctx, f"Synchronised Giveaways")
+
+	@px_giveaway.command(
+		name="embed",
+		description="Get an embed for giveaway"
+	)
+	@discord.app_commands.describe(
+		title = "The title of the embed",
+		desc = "The description of the embed",
+	)
+	@is_allowed()
+	async def giveaway_embed(self, ctx, title: str = None, desc: str = None):
+		title = title or "GIVEAWAY"
+		desc = desc or "This is a giveaway"
+		embed = get_embed(ctx, f"🎊 {title} 🎊", desc)
+		embed.add_field(
+			name="How to join",
+			value="Just react with :white_check_mark: to this message and you "
+			"will receive message once joined"
+		)
+		embed.set_footer(text="by Pixailz")
+		await send_embed(ctx, embed)
+
 def fmt_db_giveaway_all(ga):
 	body = []
 	body.append(ga[0])
@@ -211,30 +330,31 @@ def fmt_db_giveaway_one(ga):
 		fmt += f"- Message ID: `{body[3]}`\n"
 
 	users = main_db.get(f"{NameTable.user_giveaway} ug",
-		"u.id, ug.participate, ug.first_interaction",
+		"u.id, ug.participate, ug.first_interaction, ug.has_win",
 		join= [
 			("user u", "ug.user_key", "u.key"),
 			("giveaway g", "ug.giveaway_key", "g.key"),
 		],
 		where = [("g.key", body[0])],
-		col="participate",
-		order="DESC"
+		col="participate, has_win",
 	)
 
 	nb_user = len(users)
 	if nb_user > 0:
 		s = "" if nb_user == 1 or nb_user == 0 else "s"
 		fmt += f"\n{nb_user} User{s} found:\n"
-		header = ["User Name", "User ID", "Participate", "First Interaction"]
+		header = ["User Name", "User ID", "IsIn", "First Interaction", "WinID"]
 		body = []
 
-		for uid, participate, first_interaction in users:
+		for uid, participate, first_interaction, win_id in users:
 			tmp = []
 			tmp.append(str(get_user(uid)))
 			tmp.append(uid)
 			tmp.append('True' if participate else 'False')
 			tmp.append(datetime.datetime.fromtimestamp(first_interaction).strftime("%d-%m-%Y %H:%M:%S"))
+			tmp.append(win_id)
 			body.append(tmp)
+
 		fmt += f"```\n{t2a(header, body,
 			style=t2aStyle.thin_compact_rounded,
 			alignments=t2aAlignment.LEFT,
@@ -283,10 +403,42 @@ async def	giveaway_sync(bot):
 			],
 		)
 		already_joined = [ u[0] for u in users ]
-		from bot import pprint
-		pprint(already_joined)
 		for reaction in message.reactions:
 			async for user in reaction.users():
 				if not user.id in already_joined:
 					await GiveawayCOG.giveaway_user_participate(
 						user.id, message_id, True)
+
+	print("Synchronised giveaways")
+
+def can_participate(user):
+	if user["level"] < 2:
+		return (False, "Need to be level 2 or higher")
+	# if user["xp"] >= 1000:
+	# 	return True
+	return (True, None)
+
+async def giveaway_can_join(payload, giveaway_id):
+	try:
+		html_json = get_mee6_leaderboard(payload.guild_id)
+		html_json = json.loads(html_json)
+	except Exception as e:
+		print(f"Failed to get leaderboard: {e}")
+		return True
+
+	with open("mee6.json", "w") as f:
+		f.write(json.dumps(html_json, indent=4))
+
+	for user in html_json["players"]:
+		if user["id"] == str(payload.user_id):
+			retv, err = can_participate(user)
+			if retv:
+				print(f"{user['xp']:8d} (\x1b[32m{user['level']}\x1b[0m) {user['username']} ({user['id']})")
+				return True
+			else:
+				print(f"{user['xp']:8d} (\x1b[31m{user['level']}\x1b[0m) {user['username']} ({user['id']})")
+				await send_message(
+					get_user(payload.user_id),
+					f"**Failed** to join the giveaway id __{giveaway_id}__\nReason: {err}"
+				)
+				return False
