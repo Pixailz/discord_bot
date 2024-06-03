@@ -136,9 +136,9 @@ class DBWrapper:
 	def insert(self, table: str, col: list[str], value: list[str]):
 		# req = f"INSERT INTO {table} (\"{'", "'.join(col)}\")"
 		req = f"INSERT INTO {table} ({', '.join(col)})"
-		req += f" VALUES ({', '.join(
+		req += f""" VALUES ({', '.join(
 			[ str(i) for i in value ]
-		)})"
+		)})"""
 		if DEBUG:
 			print(req)
 		self.cur.execute(req)

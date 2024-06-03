@@ -355,10 +355,10 @@ def fmt_db_giveaway_one(ga):
 			tmp.append(win_id)
 			body.append(tmp)
 
-		fmt += f"```\n{t2a(header, body,
+		fmt += f"""```\n{t2a(header, body,
 			style=t2aStyle.thin_compact_rounded,
 			alignments=t2aAlignment.LEFT,
-		)}\n```"
+		)}\n```"""
 	else:
 		fmt += "No user found for this giveaway"
 
@@ -382,6 +382,10 @@ async def	giveaway_sync(bot):
 			("guild gu", "c.guild_key", "gu.key")
 		]
 	)
+	if giveaways == None:
+		print("No giveaways to synchronise")
+		return
+
 	for giveaway_key, giveaway_name, message_id, channel_id, guild_id in giveaways:
 		channel = bot.get_guild(guild_id).get_channel(channel_id)
 		message = await giveaway_get_message(channel, message_id)
